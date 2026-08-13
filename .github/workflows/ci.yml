@@ -1,0 +1,46 @@
+# geo_kin_core CI: pure-Python public package (MIT).
+#
+# Only the base install (numpy) is exercised here. Tests that need the
+# optional extras (spec-tools -> pin/scipy, fallback -> mink/quadprog) must
+# guard themselves with pytest.importorskip so the base CI stays green.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: python (pytest)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: create venv
+        run: uv venv --python ${{ matrix.python-version }}
+
+      - name: install package + pytest
+        run: uv pip install -e . pytest
+
+      - name: smoke import
+        run: .venv/bin/python -c "import geo_kin_core; print(geo_kin_core.__name__, 'OK')"
+
+      - name: pytest
+        shell: bash
+        run: |
+          set +e
+          .venv/bin/pytest -q
+          rc=$?
+          # exit code 5 = no tests collected; tolerated until tests land.
+          if [ "$rc" -eq 5 ]; then
+            echo "no tests collected - OK"
+            exit 0
+          fi
+          exit "$rc"

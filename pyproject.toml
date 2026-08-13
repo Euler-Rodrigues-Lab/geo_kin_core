@@ -16,7 +16,9 @@ dependencies = ["numpy"]
 # the cached npz with numpy alone. (MJCF hand parsing is ElementTree + scipy —
 # no mujoco needed.)
 spec-tools = ["pin>=4.0.0", "scipy"]
-fallback = ["mink", "quadprog"]
+# Mink differential-IK fallback session (mink pulls in mujoco + qpsolvers;
+# scipy for the torso rotation-vector mapping).
+fallback = ["mink", "quadprog", "scipy"]
 
 [tool.setuptools.packages.find]
 include = ["geo_kin_core*"]
