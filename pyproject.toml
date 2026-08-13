@@ -12,9 +12,10 @@ requires-python = ">=3.10"
 dependencies = ["numpy"]
 
 [project.optional-dependencies]
-# URDF/MJCF -> (R,p,h,limits) npz generation. Dev-time only; runtime consumers
-# load the cached npz and never need pinocchio/mujoco.
-spec-tools = ["pin>=4.0.0", "mujoco", "pyyaml"]
+# URDF/MJCF -> (R,p,h) npz generation. Dev-time only; runtime consumers load
+# the cached npz with numpy alone. (MJCF hand parsing is ElementTree + scipy —
+# no mujoco needed.)
+spec-tools = ["pin>=4.0.0", "scipy"]
 fallback = ["mink", "quadprog"]
 
 [tool.setuptools.packages.find]
