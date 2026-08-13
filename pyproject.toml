@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geo-kin-core"
+version = "0.1.0"
+description = "Public core for geo-kin retargeting: typed messages, solver protocol, robot spec tooling, and a mink-based fallback solver."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+# URDF/MJCF -> (R,p,h,limits) npz generation. Dev-time only; runtime consumers
+# load the cached npz and never need pinocchio/mujoco.
+spec-tools = ["pin>=4.0.0", "mujoco", "pyyaml"]
+fallback = ["mink", "quadprog"]
+
+[tool.setuptools.packages.find]
+include = ["geo_kin_core*"]
