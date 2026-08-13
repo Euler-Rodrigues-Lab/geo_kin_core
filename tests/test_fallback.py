@@ -34,7 +34,7 @@ G1_ASSETS = Path(
         "G1_TELEOP_ASSETS", "/home/chuizhengk/workspaces/g1_teleop/g1_teleop/assets"
     )
 )
-G1_XML = G1_ASSETS / "g1_29dof" / "g1_29dof.xml"
+G1_XML = G1_ASSETS / "g1_29dof_position_ctrl.xml"
 
 pytestmark = pytest.mark.skipif(
     not G1_XML.exists(), reason=f"G1 MJCF not found at {G1_XML}"

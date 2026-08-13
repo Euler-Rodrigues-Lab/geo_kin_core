@@ -65,7 +65,7 @@ def resolve_session(robot: str, hand: Optional[str] = None, **config) -> Retarge
             "resolve_session: neither the licensed `geo_kin` wheel nor the private "
             "`geo_kin_ref` reference is importable, so the public mink differential-IK "
             "fallback would be used — and it needs the robot MJCF. Pass "
-            "model_xml=<path to the robot MJCF> (e.g. the g1_29dof.xml shipped in your "
+            "model_xml=<path to the robot MJCF> (e.g. the g1_29dof_position_ctrl.xml shipped in your "
             f"robot repo's assets). Presets with body/joint names exist for "
             f"{sorted(PRESETS)}; for other robots also pass sides={{...}} "
             "(see geo_kin_core.fallback.MinkFallbackSession)."
