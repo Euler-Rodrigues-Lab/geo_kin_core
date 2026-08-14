@@ -16,6 +16,11 @@ the reference solvers consume:
   'joint_names': [str]*(n+1)}}`` for thumb/index/middle/ring/pinky
   (base + per-joint links + tip; tip name appended to joint_names).
 
+:func:`convert_legacy_npz` additionally converts geo_retarget-format legacy
+transform caches (R/p/h/limits/joint_names + embedded URDF text) into spec/1
+npz files, carrying the arrays bit-exactly and deriving ``source_sha256`` from
+the embedded URDF text (see ``geo_kin_core.spec._legacy``).
+
 CLI: ``python -m geo_kin_core.spec generate --help``.
 """
 
@@ -33,12 +38,14 @@ from ._io import (
     sha256_of_file,
     verify_signature,
 )
+from ._legacy import convert_legacy_npz
 
 __all__ = [
     "HAND_TYPES",
     "ROBOT_PARTS",
     "GENERATOR_VERSION",
     "SCHEMA",
+    "convert_legacy_npz",
     "generate_hand_spec",
     "generate_robot_spec",
     "load_spec",
