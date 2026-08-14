@@ -73,6 +73,14 @@ class RetargetDiagnostics:
     solution_branch: dict = field(default_factory=dict)  # per limb
     singularity: dict = field(default_factory=dict)  # per limb metrics
     timing_ms: dict = field(default_factory=dict)
+    # Post-solve robot-side FK in the ROBOT BASE frame (sessions that support
+    # it, e.g. Vega with robot_fk=True):
+    #   {'right': {...}|None, 'left': {...}|None,
+    #    'R_base_body': (3,3), 'p_base_body': (3,)}
+    # Per-side dict carries the G1-style FK keys (S, S_end, E, E_end, W,
+    # W_end, T, se, ew, R_0_7, S_capsule, E_capsule, W_capsule, T_capsule)
+    # plus, on hand-equipped sessions, palmbox_origin (3,) / palmbox_R (3,3).
+    robot_fk: Optional[dict] = None
 
 
 @dataclass
