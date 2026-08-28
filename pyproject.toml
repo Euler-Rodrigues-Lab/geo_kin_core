@@ -19,6 +19,8 @@ spec-tools = ["pin>=4.0.0", "scipy"]
 # Mink differential-IK fallback session (mink pulls in mujoco + qpsolvers;
 # scipy for the torso rotation-vector mapping).
 fallback = ["mink", "quadprog", "scipy"]
+# Shared MuJoCo overlays (geo_kin_core.viz): human skeleton + solver capsules.
+viz = ["mujoco"]
 
 [tool.setuptools.packages.find]
 include = ["geo_kin_core*"]
