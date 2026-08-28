@@ -57,8 +57,11 @@ class RetargetFrame:
     R_lower_upper: Optional[np.ndarray] = None  # (3,3) torso: lower-to-upper-body rotation
     left_fingers: Optional[dict] = None  # per-finger keypoint dicts (body-centric)
     right_fingers: Optional[dict] = None
-    left_hka: Optional[np.ndarray] = None  # legs (hip/knee/ankle); unused until leg support
-    right_hka: Optional[np.ndarray] = None
+    # Per-leg keypoint dict from the device: {"H", "K", "A" (body-frame
+    # hip/knee/ankle), "ankle_rot", "A_world", "hip_center_world"}. Passed
+    # through untouched; unused until leg retargeting lands.
+    left_hka: Optional[dict] = None
+    right_hka: Optional[dict] = None
     left_gripper_val: Optional[float] = None
     right_gripper_val: Optional[float] = None
     extras: dict = field(default_factory=dict)  # tags, centroids, device-specific
