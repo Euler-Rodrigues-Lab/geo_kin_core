@@ -40,20 +40,32 @@ FINGER_NAMES = ("thumb", "index", "middle", "ring", "pinky")
 FINGER_JOINTS = ("mcp", "pip", "tip")
 
 
+def _joint_point(joints: dict, suffix: str):
+    """Look a finger joint up by SUFFIX, never by an assumed key pattern.
+
+    Devices name these irregularly — ``thumb_mcp`` and ``pinky_mcp`` but
+    ``index_finger_mcp`` / ``middle_finger_mcp`` / ``ring_finger_mcp``. Matching
+    on ``f"{finger}_{joint}"`` silently drops three fingers per hand.
+    """
+    exact = [key for key in joints if key.endswith(f"_{suffix}")]
+    return joints[exact[0]] if exact else None
+
+
 class HumanCapsuleViz:
     """Capsule skeleton overlay for one human input frame."""
 
     def __init__(self, viewer, color=(0.2, 0.6, 1.0, 0.5), size: float = 0.06,
                  finger_size: float = 0.015, head_size: float = 0.09,
                  head_offset=(0.0, 0.0, 0.22), show_fingers: bool = True,
-                 show_legs: bool = True, show_head: bool = True):
+                 show_legs: bool = True, show_head: bool = True,
+                 show_feet: bool = True):
         """
         Args:
             viewer: MuJoCo passive viewer (anything with ``user_scn``).
             color: RGBA for every segment.
             size / finger_size / head_size: capsule radii (m).
             head_offset: head centre in the upper-body frame, above mid-shoulder.
-            show_fingers / show_legs / show_head: per-part toggles.
+            show_fingers / show_legs / show_head / show_feet: per-part toggles.
         """
         self.viewer = viewer
         self.color = tuple(color)
@@ -64,6 +76,7 @@ class HumanCapsuleViz:
         self.show_fingers = show_fingers
         self.show_legs = show_legs
         self.show_head = show_head
+        self.show_feet = show_feet
         self.offset_position = np.zeros(3)
         self.offset_rotation = np.eye(3)
 
@@ -139,7 +152,7 @@ class HumanCapsuleViz:
                 continue
             chain = [wrist_view]
             for joint in FINGER_JOINTS:
-                point = self._body_to_view(sub.get(f"{finger}_{joint}"), frame)
+                point = self._body_to_view(_joint_point(sub, joint), frame)
                 if point is not None:
                     chain.append(point)
             n += capsules.add_chain(self.viewer, chain, self.finger_size, self.color)
@@ -154,6 +167,11 @@ class HumanCapsuleViz:
                 continue
             chain = [self._leg_to_view(leg.get(k), leg, frame) for k in ("H", "K", "A")]
             n += capsules.add_chain(self.viewer, chain, self.size, self.color)
+            # foot: ankle joint -> recorded heel (A_world is already in world)
+            if self.show_feet and chain[2] is not None and leg.get("A_world") is not None:
+                n += capsules.add_capsule(self.viewer, chain[2],
+                                          self._to_view(leg["A_world"]),
+                                          self.finger_size * 2, self.color)
             hip_center = leg.get("hip_center_world")
             if hip_center is not None:
                 hip_centers.append(self._to_view(hip_center))

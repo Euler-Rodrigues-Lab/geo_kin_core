@@ -28,13 +28,14 @@ class _Viewer:
 
 def _frame(with_legs=True, with_fingers=True):
     body = np.eye(3)
+    # Exact device key names: thumb/pinky are "{finger}_{joint}" but
+    # index/middle/ring are "{finger}_finger_{joint}".
+    keys = {"thumb": "thumb", "index": "index_finger", "middle": "middle_finger",
+            "ring": "ring_finger", "pinky": "pinky"}
     fingers = {
-        "index": {"index_finger_mcp": np.array([0.1, 0.0, 0.0]),
-                  "index_finger_pip": np.array([0.15, 0.0, 0.0]),
-                  "index_finger_tip": np.array([0.2, 0.0, 0.0])},
-        "thumb": {"thumb_mcp": np.array([0.1, 0.02, 0.0]),
-                  "thumb_pip": np.array([0.13, 0.03, 0.0]),
-                  "thumb_tip": np.array([0.16, 0.04, 0.0])},
+        finger: {f"{stem}_{joint}": np.array([0.1 + 0.05 * j, 0.02 * i, 0.0])
+                 for j, joint in enumerate(("mcp", "pip", "tip"))}
+        for i, (finger, stem) in enumerate(keys.items())
     }
     leg = {"H": np.zeros(3), "K": np.array([0.0, 0.0, -0.4]),
            "A": np.array([0.0, 0.0, -0.8]), "hip_center_world": np.array([0.0, 0.0, 0.9])}
@@ -55,8 +56,24 @@ def test_draws_full_skeleton():
     viewer = _Viewer()
     n = HumanCapsuleViz(viewer).draw(_frame())
     assert n > 0 and viewer.user_scn.ngeom == n
-    # arms(4) + shoulder line(1) + head(1) + fingers + legs(4) + torso(1)
-    assert n >= 11
+    # arms(4) + shoulder(1) + head(1) + legs(4) + feet(0, no A_world here)
+    # + torso(1) + fingers(2 hands x 5 fingers x 3 segments = 30)
+    assert n == 41
+
+
+def test_every_finger_is_drawn_despite_irregular_key_names():
+    """Regression: a "{finger}_{joint}" pattern matches only thumb and pinky,
+    silently dropping index/middle/ring - three of five fingers per hand."""
+    with_hands = HumanCapsuleViz(_Viewer()).draw(_frame())
+    without = HumanCapsuleViz(_Viewer(), show_fingers=False).draw(_frame())
+    assert with_hands - without == 30  # 2 hands x 5 fingers x 3 segments
+
+
+def test_feet_drawn_when_heel_recorded():
+    frame = _frame()
+    for side in ("left", "right"):
+        getattr(frame, f"{side}_hka")["A_world"] = np.array([0.0, 0.0, 0.05])
+    assert HumanCapsuleViz(_Viewer()).draw(frame) == 43  # +1 foot per leg
 
 
 def test_part_toggles_reduce_geoms():
