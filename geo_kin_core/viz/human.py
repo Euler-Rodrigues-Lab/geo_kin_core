@@ -40,6 +40,15 @@ FINGER_NAMES = ("thumb", "index", "middle", "ring", "pinky")
 FINGER_JOINTS = ("mcp", "pip", "tip")
 
 
+#: Bone-name tokens that mark a finger bone (thin radius), as used by the
+#: capture-side viewer.
+FINGER_TOKENS = ("Thumb", "Index", "Middle", "Ring", "Little", "Pinky")
+
+
+def _is_finger_bone(name: str) -> bool:
+    return any(token in name for token in FINGER_TOKENS)
+
+
 def _joint_point(joints: dict, suffix: str):
     """Look a finger joint up by SUFFIX, never by an assumed key pattern.
 
@@ -108,11 +117,19 @@ class HumanCapsuleViz:
     def draw(self, frame: Optional[RetargetFrame]) -> int:
         """Draw the skeleton for `frame`. Returns the number of geoms added.
 
+        Uses ``frame.skeleton`` (the device's raw bone hierarchy) when present —
+        that is the full capture skeleton: spine, neck, head, shoulders, wrists,
+        every finger bone, and feet including the toe balls. Without it, falls
+        back to the coarse skeleton reconstructible from the SEW points and
+        finger keypoints (shoulder/elbow/wrist chains, 3 joints per finger).
+
         Does not clear the scene — call :func:`capsules.clear` once per rendered
         frame so several overlays can share it.
         """
         if frame is None or self.viewer is None:
             return 0
+        if frame.skeleton:
+            return self._draw_bone_skeleton(frame.skeleton)
         n = 0
         shoulders = []
         for side in ("left", "right"):
@@ -139,6 +156,27 @@ class HumanCapsuleViz:
 
         if self.show_legs:
             n += self._draw_legs(frame, mid_shoulder)
+        return n
+
+    def _draw_bone_skeleton(self, skeleton: dict) -> int:
+        """Draw a device bone hierarchy: one capsule per (bone -> parent) pair.
+
+        Finger bones get the thin radius, matching the capture-side viewer's
+        name test (Thumb / Index / Middle / Ring / Little).
+        """
+        positions = np.asarray(skeleton["positions"], dtype=float)
+        parents = np.asarray(skeleton["parents"], dtype=int)
+        names = list(skeleton["names"])
+        n = 0
+        for child, parent in enumerate(parents):
+            if parent < 0 or parent >= len(positions):
+                continue
+            p_child, p_parent = positions[child], positions[parent]
+            if np.isnan(p_child).any() or np.isnan(p_parent).any():
+                continue
+            radius = self.finger_size if _is_finger_bone(names[child]) else self.size
+            n += capsules.add_capsule(self.viewer, self._to_view(p_parent),
+                                      self._to_view(p_child), radius, self.color)
         return n
 
     def _draw_hand(self, fingers: Optional[dict], wrist_view: np.ndarray,

@@ -164,3 +164,42 @@ def test_filtered_sew_overlay_applies_to_world():
     draw_filtered_sew(_Viewer(), _WheelStyleSession(),
                       to_world=lambda p: seen.append(p) or np.asarray(p) + 1.0)
     assert len(seen) == 4  # two capsules x two endpoints
+
+
+def _skeleton_frame(n_bones=6):
+    """A tiny bone hierarchy: root -> spine -> two arms, one finger bone."""
+    positions = np.array([[0, 0, 1.0], [0, 0, 1.2], [0, 0.2, 1.2],
+                          [0, -0.2, 1.2], [0.1, 0.2, 1.2], [0.15, 0.2, 1.2]])[:n_bones]
+    names = ("FullBody_Hips", "FullBody_SpineUpper", "FullBody_LeftShoulder",
+             "FullBody_RightShoulder", "FullBody_LeftHandIndexProximal",
+             "FullBody_LeftHandIndexTip")[:n_bones]
+    parents = np.array([-1, 0, 1, 1, 2, 4])[:n_bones]
+    return RetargetFrame(skeleton={"positions": positions, "names": names,
+                                   "parents": parents})
+
+
+def test_raw_skeleton_is_preferred_over_sew_reconstruction():
+    viewer = _Viewer()
+    n = HumanCapsuleViz(viewer).draw(_skeleton_frame())
+    assert n == 5  # one capsule per non-root bone
+    assert viewer.user_scn.ngeom == 5
+
+
+def test_finger_bones_get_the_thin_radius():
+    """Matches the capture-side viewer's name test (Thumb/Index/.../Little)."""
+    from geo_kin_core.viz.human import _is_finger_bone
+
+    assert _is_finger_bone("FullBody_LeftHandIndexTip")
+    assert _is_finger_bone("FullBody_RightHandThumbDistal")
+    assert _is_finger_bone("FullBody_LeftHandLittleMetacarpal")
+    assert not _is_finger_bone("FullBody_SpineUpper")
+    assert not _is_finger_bone("FullBody_LeftFootBall")
+
+
+def test_skeleton_skips_nan_bones_and_bad_parents():
+    frame = _skeleton_frame()
+    frame.skeleton["positions"][5] = np.nan                      # untracked bone
+    frame.skeleton["parents"] = np.array([-1, 0, 1, 99, 2, 4])   # bone 3: bad parent
+    viewer = _Viewer()
+    # 5 segments - the NaN-tipped one - the one whose parent is out of range
+    assert HumanCapsuleViz(viewer).draw(frame) == 3

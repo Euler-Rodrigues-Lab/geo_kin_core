@@ -34,6 +34,9 @@ key                          shape           meaning
 ``{side}_A_world``           (n, 3)          ankle in world
 ``{side}_hip_center_world``  (n, 3)          hip centre in world
 ``{side}_gripper_val``       (n,)            thumb-index distance
+``skeleton/positions``       (n, N, 3)       raw device bone positions (world)
+``meta/skeleton_names``      (N,) str        bone names
+``meta/skeleton_parents``    (N,) int        parent index per bone (-1 = root)
 ``extras/<key>``             (n, 3)          pass-through vec3 extras
 ===========================  ==============  ==========================================
 
@@ -182,6 +185,17 @@ def save_frames(path, frames: Iterable[RetargetFrame], fps: float = 60.0,
     for key in _EXTRA_VEC3:
         stack(f"extras/{key}", (3,), lambda f, k=key: (f.extras or {}).get(k))
 
+    # Raw device skeleton (optional): one bone table for the stream, positions
+    # per frame. Bone identity must not drift mid-stream, so the first frame
+    # carrying a skeleton defines names/parents.
+    skeleton = next((f.skeleton for f in frames if f.skeleton), None)
+    if skeleton is not None:
+        names = [str(x) for x in skeleton["names"]]
+        out["meta/skeleton_names"] = np.array(names)
+        out["meta/skeleton_parents"] = np.asarray(skeleton["parents"], dtype=np.int64)
+        stack("skeleton/positions", (len(names), 3),
+              lambda f: None if not f.skeleton else f.skeleton["positions"])
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     (np.savez_compressed if compress else np.savez)(path, **out)
@@ -210,6 +224,8 @@ class FrameStream:
         self.finger_keys = self._data.get("meta/finger_keys")
         if self.finger_keys is None:
             self.finger_keys = np.array(DEFAULT_FINGER_KEYS)
+        self.skeleton_names = self._data.get("meta/skeleton_names")
+        self.skeleton_parents = self._data.get("meta/skeleton_parents")
 
     def __len__(self) -> int:
         return self.n
@@ -250,6 +266,12 @@ class FrameStream:
         for field in (*_MAT_FIELDS, *_VEC_FIELDS):
             value = self._opt(field, i)
             kwargs[field] = None if value is None else value.copy()
+        positions = self._opt("skeleton/positions", i)
+        kwargs["skeleton"] = None if positions is None or self.skeleton_names is None else {
+            "positions": positions.copy(),
+            "names": tuple(str(n) for n in self.skeleton_names),
+            "parents": self.skeleton_parents.copy(),
+        }
         extras = {}
         for key in _EXTRA_VEC3:
             value = self._opt(f"extras/{key}", i)

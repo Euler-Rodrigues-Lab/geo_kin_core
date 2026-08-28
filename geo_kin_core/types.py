@@ -64,6 +64,12 @@ class RetargetFrame:
     right_hka: Optional[dict] = None
     left_gripper_val: Optional[float] = None
     right_gripper_val: Optional[float] = None
+    #: Raw device skeleton for visualisation, device-neutral:
+    #: ``{"positions": (N, 3) world, "names": (N,) str, "parents": (N,) int
+    #: (-1 for a root)}``. Solvers ignore it; the human-capsule overlay draws
+    #: exactly these bones, which is what makes it match the capture rather
+    #: than a coarse reconstruction from the SEW points.
+    skeleton: Optional[dict] = None
     extras: dict = field(default_factory=dict)  # tags, centroids, device-specific
 
 

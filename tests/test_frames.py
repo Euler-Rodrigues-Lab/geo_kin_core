@@ -124,3 +124,22 @@ def test_rejects_empty_and_bad_schema(tmp_path):
     np.savez(tmp_path / "bad.npz", **{"meta/schema": np.array("nope/1")})
     with pytest.raises(ValueError, match="unsupported frame-stream schema"):
         load_frames(tmp_path / "bad.npz")
+
+
+def test_raw_skeleton_round_trips(tmp_path):
+    """The overlay draws the device's raw bones, so a stream must carry them."""
+    names = ("FullBody_Hips", "FullBody_SpineLower", "FullBody_LeftHandIndexTip")
+    parents = np.array([-1, 0, 1])
+    frames = [_frame(skeleton={"positions": RNG.normal(size=(3, 3)),
+                               "names": names, "parents": parents}) for _ in range(3)]
+    stream = load_frames(save_frames(tmp_path / "s.npz", frames))
+    for original, restored in zip(frames, stream.frames()):
+        np.testing.assert_array_equal(original.skeleton["positions"],
+                                      restored.skeleton["positions"])
+        assert tuple(restored.skeleton["names"]) == names
+        np.testing.assert_array_equal(restored.skeleton["parents"], parents)
+
+
+def test_skeleton_is_optional(tmp_path):
+    stream = load_frames(save_frames(tmp_path / "s.npz", [_frame()]))
+    assert stream[0].skeleton is None
