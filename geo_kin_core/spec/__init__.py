@@ -26,7 +26,9 @@ CLI: ``python -m geo_kin_core.spec generate --help``.
 
 from ._extract import (
     HAND_TYPES,
+    RBY1_PARTS,
     ROBOT_PARTS,
+    ROBOT_SEQUENCE_TABLES,
     generate_hand_spec,
     generate_robot_spec,
 )
@@ -42,7 +44,9 @@ from ._legacy import convert_legacy_npz
 
 __all__ = [
     "HAND_TYPES",
+    "RBY1_PARTS",
     "ROBOT_PARTS",
+    "ROBOT_SEQUENCE_TABLES",
     "GENERATOR_VERSION",
     "SCHEMA",
     "convert_legacy_npz",

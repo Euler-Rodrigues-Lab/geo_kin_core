@@ -4,7 +4,11 @@ These are near-verbatim ports of the reference extractors so the produced
 dicts are STRUCTURALLY and NUMERICALLY identical to what the solvers were
 developed against:
 
-- robot parts: ``get_frame_transforms_from_pinocchio`` (G1 full-body monolith)
+- G1 robot parts: ``get_frame_transforms_from_pinocchio`` (G1 full-body monolith)
+- RBY1 robot parts: ``get_frame_transforms_from_pinocchio`` (rby1_teleop
+  monolith ``geometric_kinematics_rby1.py`` — a DIFFERENT function of the same
+  name: it additionally extracts joint limits, falls back to pinocchio frames
+  for URDF fixed joints, and appends the end-effector frame transform)
 - inspire hand: ``get_frame_transforms_from_xml`` (inspire_hand_teleop monolith)
 - psyonic hand: ``get_psyonic_frame_transforms_from_xml`` (G1 full-body monolith)
 
@@ -36,33 +40,101 @@ ROBOT_JOINT_SEQUENCES = {
 
 ROBOT_PARTS: List[str] = list(ROBOT_JOINT_SEQUENCES.keys())
 
-HAND_TYPES = ("inspire", "psyonic")
+#: RBY1 (Rainbow Robotics RB-Y1) parts, verbatim from the monolith's
+#: rby1_teleop/geometric_kinematics_rby1.py get_frame_transforms_from_pinocchio.
+RBY1_JOINT_SEQUENCES = {
+    "right_arm": ["right_arm_0", "right_arm_1", "right_arm_2", "right_arm_3",
+                  "right_arm_4", "right_arm_5", "right_arm_6"],
+    "left_arm": ["left_arm_0", "left_arm_1", "left_arm_2", "left_arm_3",
+                 "left_arm_4", "left_arm_5", "left_arm_6"],
+    # Include shoulder bases + head_base for torso IK context
+    "torso": ["torso_0", "torso_1", "torso_2", "torso_3", "torso_4", "torso_5",
+              "right_arm_0", "left_arm_0", "head_base"],
+    "base": ["right_wheel", "left_wheel"],
+    # Keep head_base so head FK can be expressed in head_base frame
+    "head": ["head_base", "head_0", "head_1"],
+    # Full finger sequences for detailed hand analysis (XHand-equipped URDF)
+    "right_hand_thumb": ["right_hand_thumb_bend_joint", "right_hand_thumb_rota_joint1", "right_hand_thumb_rota_joint2"],
+    "left_hand_thumb": ["left_hand_thumb_bend_joint", "left_hand_thumb_rota_joint1", "left_hand_thumb_rota_joint2"],
+    "right_hand_index": ["right_hand_index_bend_joint", "right_hand_index_joint1", "right_hand_index_joint2"],
+    "left_hand_index": ["left_hand_index_bend_joint", "left_hand_index_joint1", "left_hand_index_joint2"],
+    "right_hand_mid": ["right_hand_mid_joint1", "right_hand_mid_joint2"],
+    "left_hand_mid": ["left_hand_mid_joint1", "left_hand_mid_joint2"],
+    "right_hand_ring": ["right_hand_ring_joint1", "right_hand_ring_joint2"],
+    "left_hand_ring": ["left_hand_ring_joint1", "left_hand_ring_joint2"],
+    "right_hand_pinky": ["right_hand_pinky_joint1", "right_hand_pinky_joint2"],
+    "left_hand_pinky": ["left_hand_pinky_joint1", "left_hand_pinky_joint2"],
+}
+
+#: End-effector frames appended to each RBY1 part chain (fixed transform, h=0).
+RBY1_END_EFFECTOR_FRAMES = {
+    "right_arm": "link_right_arm_6",
+    "left_arm": "link_left_arm_6",
+    "torso": "link_torso_4",
+    "base": "base_link",
+    "head": "link_head_2",
+    "right_hand": "right_hand_ee_link",
+    "left_hand": "left_hand_ee_link",
+    "right_hand_thumb": "right_hand_thumb_rota_tip",
+    "left_hand_thumb": "left_hand_thumb_rota_tip",
+    "right_hand_index": "right_hand_index_rota_tip",
+    "left_hand_index": "left_hand_index_rota_tip",
+    "right_hand_mid": "right_hand_mid_tip",
+    "left_hand_mid": "left_hand_mid_tip",
+    "right_hand_ring": "right_hand_ring_tip",
+    "left_hand_ring": "left_hand_ring_tip",
+    "right_hand_pinky": "right_hand_pinky_tip",
+    "left_hand_pinky": "left_hand_pinky_tip",
+}
+
+RBY1_PARTS: List[str] = list(RBY1_JOINT_SEQUENCES.keys())
+
+#: Per-robot joint-sequence tables the URDF extractor knows about.
+ROBOT_SEQUENCE_TABLES = {
+    "g1": ROBOT_JOINT_SEQUENCES,
+    "rby1": RBY1_JOINT_SEQUENCES,
+}
+
+HAND_TYPES = ("inspire", "psyonic", "xhand")
 
 
 # ---------------------------------------------------------------------------
 # Robot (URDF via pinocchio)
 # ---------------------------------------------------------------------------
 
-def generate_robot_spec(urdf_path: str, parts: Sequence[str]) -> Dict:
+def generate_robot_spec(urdf_path: str, parts: Sequence[str], robot: str = "g1") -> Dict:
     """Extract per-part frame transforms from a URDF.
 
     Args:
         urdf_path: Path to the robot URDF.
-        parts: Part names to extract (subset of :data:`ROBOT_PARTS`).
+        parts: Part names to extract (subset of the robot's sequence table).
+        robot: Which robot's joint-sequence table / extractor conventions to
+            use ('g1' or 'rby1'). The extractors are near-verbatim ports of the
+            respective monolith functions and differ deliberately: 'rby1' also
+            extracts joint limits, resolves URDF fixed joints as pinocchio
+            frames, and appends the part's end-effector frame transform.
 
     Returns:
         ``{part: {'R': [3x3, ...], 'p': [(3,), ...], 'h': [(3,), ...],
         'joint_names': [str, ...]}}`` — each part dict structurally identical
-        to the monolith's ``get_frame_transforms_from_pinocchio`` output.
+        to the monolith's ``get_frame_transforms_from_pinocchio`` output
+        ('rby1' parts additionally carry ``joint_lower``/``joint_upper``).
     """
     import pinocchio as pin  # heavy dep, lazy
 
+    if robot not in ROBOT_SEQUENCE_TABLES:
+        raise ValueError(
+            f"Unknown robot {robot!r}. Available: {sorted(ROBOT_SEQUENCE_TABLES)}")
+    sequences = ROBOT_SEQUENCE_TABLES[robot]
+
     parts = list(parts)
-    unknown = [p for p in parts if p not in ROBOT_JOINT_SEQUENCES]
+    unknown = [p for p in parts if p not in sequences]
     if unknown:
-        raise ValueError(f"Unknown parts: {unknown}. Available: {ROBOT_PARTS}")
+        raise ValueError(f"Unknown parts: {unknown}. Available: {list(sequences)}")
 
     model = pin.buildModelFromUrdf(str(urdf_path))
+    if robot == "rby1":
+        return {part: _extract_rby1_part(model, part) for part in parts}
     return {part: _extract_robot_part(model, part) for part in parts}
 
 
@@ -118,6 +190,124 @@ def _extract_robot_part(model, part_name: str) -> Dict:
     }
 
 
+def _extract_rby1_part(model, part_name: str) -> Dict:
+    """Extract R_i_i+1, p_i_i+1, joint axes h_i (+ limits, + EE frame) for one RBY1 part.
+
+    Near-verbatim port of the rby1_teleop monolith's
+    ``get_frame_transforms_from_pinocchio`` (geometric_kinematics_rby1.py).
+    Differences vs :func:`_extract_robot_part` are intentional monolith
+    behavior: joint limits are extracted per joint (0.0 for fixed frames),
+    URDF fixed joints (e.g. ``head_base``) resolve through the pinocchio frame
+    fallback with a zero axis, and the part's end-effector frame transform is
+    appended (its name appended to joint_names).
+    """
+    if part_name not in RBY1_JOINT_SEQUENCES:
+        raise ValueError(
+            f"Unknown part_name: {part_name}. Available: {RBY1_PARTS}")
+
+    joint_names = RBY1_JOINT_SEQUENCES[part_name]
+    R_transforms = []
+    p_transforms = []
+    h_transforms = []
+    joint_lower = []
+    joint_upper = []
+
+    for joint_name in joint_names:
+        try:
+            # URDF fixed joints are often represented as frames (not model
+            # joints) in Pinocchio.
+            joint_id = model.getJointId(joint_name)
+            joint_is_direct_match = (
+                joint_id != 0
+                and joint_id < len(model.names)
+                and model.names[joint_id] == joint_name
+            )
+
+            if joint_is_direct_match:
+                joint = model.joints[joint_id]
+                M_local = model.jointPlacements[joint_id]
+
+                R_i_iplus1 = M_local.rotation.copy()
+                p_i_iplus1 = M_local.translation.copy()
+
+                if joint.shortname() == "JointModelRZ":
+                    h_i = np.array([0.0, 0.0, 1.0])
+                elif joint.shortname() == "JointModelRY":
+                    h_i = np.array([0.0, 1.0, 0.0])
+                elif joint.shortname() == "JointModelRX":
+                    h_i = np.array([1.0, 0.0, 0.0])
+                elif hasattr(joint, 'axis'):
+                    h_i = joint.axis.copy()
+                else:
+                    print(f"Warning: Unknown joint type {joint.shortname()} for joint {joint_name}, using zero axis")
+                    h_i = np.array([0.0, 0.0, 0.0])
+
+                # Extract joint limits if joint has configuration variables
+                if joint.nq > 0:
+                    idx_q = joint.idx_q
+                    lower = model.lowerPositionLimit[idx_q:idx_q + joint.nq].copy()
+                    upper = model.upperPositionLimit[idx_q:idx_q + joint.nq].copy()
+                    if joint.nq == 1:
+                        lower = lower[0]
+                        upper = upper[0]
+                    joint_lower.append(lower)
+                    joint_upper.append(upper)
+                else:
+                    joint_lower.append(0.0)
+                    joint_upper.append(0.0)
+            elif model.existFrame(joint_name):
+                # Fallback path for fixed joints represented as frames.
+                frame_id = model.getFrameId(joint_name)
+                frame = model.frames[frame_id]
+                M_local = frame.placement
+
+                R_i_iplus1 = M_local.rotation.copy()
+                p_i_iplus1 = M_local.translation.copy()
+                h_i = np.array([0.0, 0.0, 0.0])
+                joint_lower.append(0.0)
+                joint_upper.append(0.0)
+            else:
+                raise ValueError(f"Joint/frame {joint_name} not found in Pinocchio model")
+
+            R_transforms.append(R_i_iplus1)
+            p_transforms.append(p_i_iplus1)
+            h_transforms.append(h_i)
+
+        except Exception as e:
+            print(f"Error processing joint {joint_name}: {e}")
+            continue
+
+    # Add transformation from last joint to end effector frame if it exists
+    end_effector_frame = RBY1_END_EFFECTOR_FRAMES.get(part_name)
+    ee_exists = False
+    if end_effector_frame:
+        try:
+            if model.existFrame(end_effector_frame):
+                ee_exists = True
+                frame_id = model.getFrameId(end_effector_frame)
+                frame = model.frames[frame_id]
+
+                M_joint_to_ee = frame.placement
+                R_transforms.append(M_joint_to_ee.rotation.copy())
+                p_transforms.append(M_joint_to_ee.translation.copy())
+                h_transforms.append(np.array([0.0, 0.0, 0.0]))
+                joint_lower.append(0.0)
+                joint_upper.append(0.0)
+            else:
+                print(f"Warning: End effector frame {end_effector_frame} not found in model")
+        except Exception as e:
+            print(f"Error adding end effector frame {end_effector_frame}: {e}")
+
+    return {
+        'R': R_transforms,
+        'p': p_transforms,
+        'h': h_transforms,
+        'joint_lower': joint_lower,
+        'joint_upper': joint_upper,
+        'joint_names': joint_names + ([end_effector_frame] if ee_exists else []),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Hands (MJCF via ElementTree; no mujoco runtime needed)
 # ---------------------------------------------------------------------------
@@ -140,6 +330,8 @@ def generate_hand_spec(xml_path: str, side: str, hand_type: str = "inspire") -> 
         return _extract_inspire_transforms(str(xml_path), side)
     if hand_type == "psyonic":
         return _extract_psyonic_transforms(str(xml_path), side)
+    if hand_type == "xhand":
+        return _extract_xhand_transforms(str(xml_path), side)
     raise ValueError(f"hand_type must be one of {HAND_TYPES}, got {hand_type!r}")
 
 
@@ -330,6 +522,176 @@ def _extract_inspire_transforms(xml_path: str, hand_side: str) -> Dict:
                         finger_transforms['joint_names'].append(f'{finger_name}_tip')
 
         transforms[finger_name] = finger_transforms
+
+    return transforms
+
+
+def _extract_xhand_transforms(xml_path: str, hand_side: str) -> Dict:
+    """Parse frame transformations R, p, h (+ joint limits) for the XHand.
+
+    Near-verbatim port of the xhand_teleop monolith's
+    ``get_fingers_frame_transforms_from_xml`` (geometric_kinematics_xhand.py),
+    minus the ``transforms['side']`` string entry (the side is carried in the
+    npz metadata instead; runtime consumers re-inject it).
+
+    Source MJCF: the standalone hand files (xhand_right.xml / xhand_left.xml).
+    Chain per finger is rooted at the wrist body ``<side>`` through
+    ``<side>_eef`` -> ``x_<side>_hand_root``; the FIRST body transform of each
+    finger is re-expressed in the WRIST frame.
+    """
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    transforms = {}
+
+    wrist_body = None
+    for elem in root.iter('body'):
+        if elem.get('name') == hand_side:
+            wrist_body = elem
+            break
+
+    if wrist_body is None:
+        print(f"Could not find wrist body {hand_side}")
+        return {}
+    else:
+        R_wrist, p_wrist = _parse_transform_from_body(wrist_body)
+        T_wrist = np.eye(4)
+        T_wrist[:3, :3] = R_wrist
+        T_wrist[:3, 3] = p_wrist
+
+    eef_name = f"{hand_side}_eef"
+    eef_body = _find_body_in_xml(wrist_body, eef_name)
+
+    if eef_body is None:
+        print(f"Could not find eef body {eef_name}")
+        return {}
+    else:
+        R_eef, p_eef = _parse_transform_from_body(eef_body)
+        T_eef = np.eye(4)
+        T_eef[:3, :3] = R_eef
+        T_eef[:3, 3] = p_eef
+
+    # The root body for the hand is x_{side}_hand_root
+    hand_root_name = f"x_{hand_side}_hand_root"
+    hand_root_body = _find_body_in_xml(wrist_body, hand_root_name)
+
+    if hand_root_body is None:
+        print(f"Could not find hand root body {hand_root_name}")
+        return {}
+    else:
+        R_hand_root, p_hand_root = _parse_transform_from_body(hand_root_body)
+        T_hand_root = np.eye(4)
+        T_hand_root[:3, :3] = R_hand_root
+        T_hand_root[:3, 3] = p_hand_root
+
+    # In xhand_right.xml: right -> right_eef -> x_right_hand_root
+    T_w_r = T_wrist @ T_eef @ T_hand_root
+
+    # Define chains for each finger relative to hand root.
+    # Exactly 4 transforms [Base, L1, L2, Tip] for thumb/index and
+    # 3 [Base, L1, Tip] for the rest, with 'fixed' entries for jointless bodies.
+    chains_config = {
+        'thumb': [
+            f"{hand_side}_hand_thumb_bend_link",    # L1
+            f"{hand_side}_hand_thumb_rota_link1",   # L2
+            f"{hand_side}_hand_thumb_rota_link2",   # L3
+            f"{hand_side}_hand_thumb_rota_tip"      # L4
+        ],
+        'index': [
+            f"{hand_side}_hand_index_bend_link",    # L1
+            f"{hand_side}_hand_index_rota_link1",   # L2
+            f"{hand_side}_hand_index_rota_link2",   # L3
+            f"{hand_side}_hand_index_rota_tip"      # L4
+        ],
+        'middle': [
+            f"{hand_side}_hand_mid_link1",
+            f"{hand_side}_hand_mid_link2",
+            f"{hand_side}_hand_mid_tip"
+        ],
+        'ring': [
+            f"{hand_side}_hand_ring_link1",
+            f"{hand_side}_hand_ring_link2",
+            f"{hand_side}_hand_ring_tip"
+        ],
+        'pinky': [
+            f"{hand_side}_hand_pinky_link1",
+            f"{hand_side}_hand_pinky_link2",
+            f"{hand_side}_hand_pinky_tip"
+        ]
+    }
+
+    for finger, body_names in chains_config.items():
+        R_list = []
+        p_list = []
+        h_list = []
+        joint_names = []
+        joint_lower_list = []
+        joint_upper_list = []
+
+        # Traverse and parse bodies from XML
+        current_parent = hand_root_body
+        parsed_bodies = []
+        valid_chain = True
+
+        for name in body_names:
+            body = _find_body_in_xml(current_parent, name)
+            if body is None:
+                print(f"Warning: {name} not found for {finger}")
+                valid_chain = False
+                break
+            R, p = _parse_transform_from_body(body)
+
+            # Get axis
+            j_elem = body.find(".//joint")
+            if j_elem is not None:
+                axis_str = j_elem.get('axis', '0 0 1')
+                h = np.array([float(x) for x in axis_str.split()])
+                j_name = j_elem.get('name', 'unknown')
+                range_str = j_elem.get('range', None)
+                if range_str:
+                    bounds = [float(x) for x in range_str.split()]
+                    j_lower, j_upper = bounds[0], bounds[1]
+                else:
+                    j_lower, j_upper = -np.pi, np.pi
+            else:
+                h = np.zeros(3)
+                j_name = 'fixed'
+                j_lower, j_upper = 0.0, 0.0
+
+            parsed_bodies.append({'R': R, 'p': p, 'h': h, 'j': j_name,
+                                  'lower': j_lower, 'upper': j_upper})
+            current_parent = body
+
+        if not valid_chain or not parsed_bodies:
+            continue
+
+        # Adjust the first body's transform to be in the WRIST frame!
+        T_0_local = np.eye(4)
+        T_0_local[:3, :3] = parsed_bodies[0]['R']
+        T_0_local[:3, 3] = parsed_bodies[0]['p']
+
+        # T_w_r is transforms from wrist to hand root
+        T_0_wrist = T_w_r @ T_0_local
+        parsed_bodies[0]['R'] = T_0_wrist[:3, :3]
+        parsed_bodies[0]['p'] = T_0_wrist[:3, 3]
+
+        # Construct Output Lists
+        for b in parsed_bodies:
+            R_list.append(b['R'])
+            p_list.append(b['p'])
+            h_list.append(b['h'])
+            joint_names.append(b['j'])
+            joint_lower_list.append(b['lower'])
+            joint_upper_list.append(b['upper'])
+
+        transforms[finger] = {
+            'R': R_list,
+            'p': p_list,
+            'h': h_list,
+            'joint_names': joint_names,
+            'joint_lower': joint_lower_list,
+            'joint_upper': joint_upper_list,
+        }
 
     return transforms
 

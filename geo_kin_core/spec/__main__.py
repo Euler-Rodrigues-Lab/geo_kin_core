@@ -19,15 +19,22 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ._extract import HAND_TYPES, ROBOT_PARTS, generate_hand_spec, generate_robot_spec
+from ._extract import (
+    HAND_TYPES,
+    ROBOT_PARTS,
+    ROBOT_SEQUENCE_TABLES,
+    generate_hand_spec,
+    generate_robot_spec,
+)
 from ._io import load_spec, save_spec, verify_signature
 
 
 def _cmd_generate(args) -> int:
     if args.kind == "robot":
-        parts = args.parts or ROBOT_PARTS
-        spec = generate_robot_spec(args.source, parts)
-        extra_meta = None
+        parts = args.parts or list(ROBOT_SEQUENCE_TABLES[args.robot])
+        spec = generate_robot_spec(args.source, parts, robot=args.robot)
+        # g1 npz files predate the robot tag; keep them meta-identical.
+        extra_meta = None if args.robot == "g1" else {"robot": args.robot}
     else:
         if not args.side or not args.hand_type:
             print("error: --side and --hand-type are required for --kind hand",
@@ -78,8 +85,12 @@ def main(argv=None) -> int:
     gen.add_argument("--source", required=True,
                      help="Path to the source URDF (robot) or MJCF xml (hand).")
     gen.add_argument("--out", required=True, help="Output .npz path.")
+    gen.add_argument("--robot", choices=sorted(ROBOT_SEQUENCE_TABLES),
+                     default="g1",
+                     help="Robot whose joint-sequence table to use (default: g1).")
     gen.add_argument("--parts", nargs="+", metavar="PART",
-                     help=f"Robot parts to extract (default: all of {ROBOT_PARTS}).")
+                     help="Robot parts to extract (default: the robot's full "
+                          f"table, e.g. {ROBOT_PARTS} for g1).")
     gen.add_argument("--side", choices=["left", "right"],
                      help="Hand side (required for --kind hand).")
     gen.add_argument("--hand-type", choices=list(HAND_TYPES),

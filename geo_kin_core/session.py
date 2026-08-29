@@ -42,7 +42,12 @@ def resolve_session(robot: str, hand: Optional[str] = None, **config) -> Retarge
     try:
         import geo_kin  # licensed wheel
 
-        return geo_kin.RetargetSession(robot=robot, hand=hand, **config)
+        # A wheel only contains the robots compiled into it (cargo features);
+        # fall through for robots it doesn't carry rather than failing on
+        # construction. Older wheels without COMPILED_ROBOTS carry g1+vega.
+        compiled = getattr(geo_kin, "COMPILED_ROBOTS", ("g1", "vega"))
+        if robot in compiled:
+            return geo_kin.RetargetSession(robot=robot, hand=hand, **config)
     except ImportError:
         pass
     try:

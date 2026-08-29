@@ -104,6 +104,11 @@ class RetargetOutput:
     q_goal_right_leg: Optional[np.ndarray] = None  # reserved; None until leg support
     q_goal_left_leg: Optional[np.ndarray] = None
     q_goal_head: Optional[np.ndarray] = None
+    # Mobile-base placement in world (robots with a movable base, e.g. RBY1's
+    # SE(2) wheeled base). Fixed-base sessions leave these None; RBY1 emits the
+    # held initial pose even when the base is configured immobile.
+    p_world_base: Optional[np.ndarray] = None  # (3,)
+    R_world_base: Optional[np.ndarray] = None  # (3,3)
     left_gripper_val: Optional[float] = None  # pass-through
     right_gripper_val: Optional[float] = None
     diag: RetargetDiagnostics = field(default_factory=RetargetDiagnostics)
