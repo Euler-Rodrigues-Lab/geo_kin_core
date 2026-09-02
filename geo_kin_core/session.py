@@ -35,10 +35,15 @@ class RetargetingSolver(Protocol):
 
 
 def resolve_session(robot: str, hand: Optional[str] = None, **config) -> RetargetingSolver:
-    """Return the best available solver backend for robot(+hand).
+    """Return a solver backend for robot(+hand).
 
-    Order: licensed `geo_kin` wheel -> private `geo_kin_ref` -> mink fallback.
+    ``backend='auto'`` uses licensed wheel -> private reference -> MINK.
+    ``backend='licensed'|'reference'|'mink'`` selects one explicitly, which is
+    useful for offline A/B validation even when the licensed wheel is installed.
     """
+    backend = config.pop("backend", "auto")
+    if backend not in ("auto", "licensed", "reference", "mink"):
+        raise ValueError("backend must be one of: auto, licensed, reference, mink")
     try:
         import geo_kin  # licensed wheel
 
@@ -46,16 +51,24 @@ def resolve_session(robot: str, hand: Optional[str] = None, **config) -> Retarge
         # fall through for robots it doesn't carry rather than failing on
         # construction. Older wheels without COMPILED_ROBOTS carry g1+vega.
         compiled = getattr(geo_kin, "COMPILED_ROBOTS", ("g1", "vega"))
-        if robot in compiled:
+        if backend in ("auto", "licensed") and robot in compiled:
             return geo_kin.RetargetSession(robot=robot, hand=hand, **config)
+        if backend == "licensed":
+            raise ValueError(
+                f"licensed geo_kin wheel does not contain robot {robot!r}; "
+                f"compiled robots: {sorted(compiled)}"
+            )
     except ImportError:
-        pass
+        if backend == "licensed":
+            raise
     try:
         import geo_kin_ref  # private reference, dev machine only
 
-        return geo_kin_ref.make_session(robot=robot, hand=hand, **config)
+        if backend in ("auto", "reference"):
+            return geo_kin_ref.make_session(robot=robot, hand=hand, **config)
     except ImportError:
-        pass
+        if backend == "reference":
+            raise
 
     # Public mink differential-IK fallback. Unlike the licensed/reference
     # backends it solves against the robot MJCF, so the caller must say where

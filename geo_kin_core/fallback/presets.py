@@ -53,8 +53,55 @@ G1_SIDES = {
     },
 }
 
+# Rainbow Robotics RB-Y1 Model M + XHand. The frame names are from the public
+# model_v1.3_xhand_act.xml shipped by rby1_teleop. SEW points in RBY1 frame
+# streams are expressed in the human upper-body frame, so the companion options
+# request the frame/base mapping used by the frozen WARP MINK baseline.
+RBY1_SIDES = {
+    "right": {
+        "shoulder_body": "link_right_arm_0",
+        "elbow_body": "link_right_arm_3",
+        "wrist_body": "link_right_arm_6",
+        "palm_body": "right_hand_link",
+        "joints": [f"right_arm_{i}" for i in range(7)],
+    },
+    "left": {
+        "shoulder_body": "link_left_arm_0",
+        "elbow_body": "link_left_arm_3",
+        "wrist_body": "link_left_arm_6",
+        "palm_body": "left_hand_link",
+        "joints": [f"left_arm_{i}" for i in range(7)],
+    },
+    "torso": {
+        "body": "link_torso_5",
+        "joints": [f"torso_{i}" for i in range(6)],
+    },
+    "head": {
+        "body": "link_head_2",
+        "joints": ["head_0", "head_1"],
+    },
+    "base": {"body": "base"},
+}
+
+# Fixed human-wrist -> RB-Y1 joint-7 axis convention from the frozen MINK
+# baseline. Stored as plain nested lists so this module remains numpy-free.
+RBY1_OPTIONS = {
+    "targets_in_upper_body_frame": True,
+    "align_base_to_upper_body": True,
+    "torso_target_mode": "upper_body",
+    "wrist_rotation_offsets": {
+        "right": [[0.0, 0.0, -1.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        "left": [[0.0, 0.0, -1.0], [1.0, 0.0, 0.0], [0.0, -1.0, 0.0]],
+    },
+}
+
 PRESETS = {
     "g1": G1_SIDES,
+    "rby1": RBY1_SIDES,
+}
+
+PRESET_OPTIONS = {
+    "rby1": RBY1_OPTIONS,
 }
 
 
@@ -72,3 +119,8 @@ def get_preset(name: str) -> dict:
             "Construct MinkFallbackSession directly with a sides config dict."
         ) from None
     return copy.deepcopy(preset)
+
+
+def get_preset_options(name: str) -> dict:
+    """Return robot-specific fallback defaults without mutating globals."""
+    return copy.deepcopy(PRESET_OPTIONS.get(name, {}))
