@@ -42,6 +42,10 @@ def resolve_session(robot: str, hand: Optional[str] = None, **config) -> Retarge
     useful for offline A/B validation even when the licensed wheel is installed.
     """
     backend = config.pop("backend", "auto")
+    # Public-fallback construction inputs are not part of the licensed or
+    # reference backend APIs.
+    model_xml = config.pop("model_xml", None)
+    sides = config.pop("sides", None)
     if backend not in ("auto", "licensed", "reference", "mink"):
         raise ValueError("backend must be one of: auto, licensed, reference, mink")
     try:
@@ -76,8 +80,6 @@ def resolve_session(robot: str, hand: Optional[str] = None, **config) -> Retarge
     from .fallback import MinkFallbackSession
     from .fallback.presets import PRESETS
 
-    model_xml = config.pop("model_xml", None)
-    sides = config.pop("sides", None)
     if model_xml is None:
         raise ValueError(
             "resolve_session: neither the licensed `geo_kin` wheel nor the private "

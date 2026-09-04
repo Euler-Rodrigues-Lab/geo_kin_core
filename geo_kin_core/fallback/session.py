@@ -277,7 +277,7 @@ class MinkFallbackSession:
         data = self._configuration.data
         for side in ("right", "left"):
             cfg = sides[side]
-            palm_name = cfg.get("palm_body")
+            palm_name = cfg.get("palm_body") if self.wrist_target_mode == "palm" else None
             if palm_name:
                 wrist = data.body(cfg["wrist_body"])
                 palm = data.body(palm_name)
