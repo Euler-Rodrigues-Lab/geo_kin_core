@@ -9,7 +9,13 @@ description = "Public core for geo-kin retargeting: typed messages, solver proto
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-dependencies = ["numpy"]
+dependencies = [
+    "numpy",
+    "tomli>=2; python_version < '3.11'",
+]
+
+[project.scripts]
+geo-kin-provision = "geo_kin_core.provision:main"
 
 [project.optional-dependencies]
 # URDF/MJCF -> (R,p,h) npz generation. Dev-time only; runtime consumers load
