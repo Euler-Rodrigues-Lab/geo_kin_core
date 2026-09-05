@@ -28,26 +28,25 @@ session = resolve_session(
 > The SEW geometric retargeting method implemented by the `geo_kin` wheel is
 > patented and licensed separately. This repository grants no patent license.
 
-## Shared checkout and licensed-wheel provisioning
+## Licensed-wheel provisioning
 
-Robot repositories should depend on one sibling checkout of this repository
-instead of embedding `geo_kin_core` as a submodule:
+Robot repositories pin this public package as an
+`external/geo_kin_core` submodule. This keeps a fresh clone self-contained and
+reproducible while the large licensed binary and private license remain shared
+per user:
 
 ```text
-Euler-Rodrigues-Lab/
-├── geo_kin_core/
-├── g1_teleop/
-├── rby1_teleop/
-├── WARP_retargeting/
-└── rby1_dex_sim/
+robot_repository/
+└── external/
+    └── geo_kin_core/  # pinned public source only
 ```
 
-Consumer `pyproject.toml` files select the sibling checkout and declare the
+Consumer `pyproject.toml` files select the submodule and declare the
 licensed product they need:
 
 ```toml
 [tool.uv.sources]
-geo-kin-core = { path = "../geo_kin_core", editable = true }
+geo-kin-core = { path = "external/geo_kin_core", editable = true }
 
 [tool.geo-kin]
 product = "rby1-xhand"
@@ -62,10 +61,27 @@ stores them at:
 ~/.config/geo-kin/license.toml
 ```
 
-Register a supplied wheel and license once per user:
+Cloning with submodules and running `uv sync` installs the public package and
+the `geo-kin-provision` command into that project's environment:
 
 ```bash
-cd /path/to/Euler-Rodrigues-Lab/geo_kin_core
+git clone --recurse-submodules https://github.com/Euler-Rodrigues-Lab/rby1_teleop.git
+cd rby1_teleop
+uv sync
+```
+
+For an existing checkout, initialize the newly added submodule before syncing:
+
+```bash
+git pull
+git submodule update --init --recursive
+uv sync
+```
+
+Register a supplied wheel and license once per user. This command can be run
+from any provisioned consumer repository:
+
+```bash
 uv run geo-kin-provision register \
   --product rby1-xhand \
   --wheel /path/to/geo_kin-0.1.0-cp310-abi3-manylinux_2_35_x86_64.whl \
@@ -77,8 +93,7 @@ uv run geo-kin-provision register \
 Then provision any consumer environment after its normal dependency sync:
 
 ```bash
-cd ../rby1_dex_sim
-uv sync
+# From the consumer repository after `uv sync`:
 uv run geo-kin-provision install
 ```
 
@@ -95,11 +110,13 @@ Useful management commands:
 ```bash
 uv run geo-kin-provision status
 uv run geo-kin-provision activate rl2-rby1-xhand
-uv run geo-kin-provision install --project ../WARP_retargeting
+uv run geo-kin-provision install --project /path/to/WARP_retargeting
 ```
 
-Set `GEO_KIN_WHEEL_DIR` to use a different shared wheel root. An explicit
-`GEO_KIN_LICENSE` continues to override the active canonical license. Never
-put a real wheel or license in this public repository.
+Each repository has its own pinned copy of the small public package and command,
+but all of them use the same central wheel extraction and license. Set
+`GEO_KIN_WHEEL_DIR` to use a different shared wheel root. An explicit
+`GEO_KIN_LICENSE` continues to override the active canonical license. Never put
+a real wheel or license in this public repository or one of its consumers.
 
 MIT licensed.
