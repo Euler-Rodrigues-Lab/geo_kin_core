@@ -112,3 +112,21 @@ class RetargetOutput:
     left_gripper_val: Optional[float] = None  # pass-through
     right_gripper_val: Optional[float] = None
     diag: RetargetDiagnostics = field(default_factory=RetargetDiagnostics)
+
+
+@dataclass
+class EEFPose:
+    """Index-MCP palm-box pose in tracking world coordinates (metres, SO(3))."""
+    position: np.ndarray
+    rotation: np.ndarray
+
+
+@dataclass
+class EEFFrame:
+    """EEF-only control; finger dictionaries are explicitly wrist-local."""
+    left_eef: Optional[EEFPose] = None
+    right_eef: Optional[EEFPose] = None
+    p_world_upper_body: Optional[np.ndarray] = None
+    R_world_upper_body: Optional[np.ndarray] = None
+    left_fingers_wrist: Optional[dict] = None
+    right_fingers_wrist: Optional[dict] = None
