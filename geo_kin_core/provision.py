@@ -92,8 +92,8 @@ def _product_parts(product: str) -> tuple[str, str | None]:
     parts = product.lower().split("-", 1)
     robot = parts[0]
     hand = parts[1] if len(parts) == 2 else None
-    if robot not in {"g1", "rby1", "vega", "openarm", "urgantry"}:
-        raise ValueError("product must begin with g1, rby1, vega, openarm, or urgantry")
+    if robot not in {"g1", "rby1", "vega", "openarm", "urgantry", "dual_kinova3"}:
+        raise ValueError("product must begin with g1, rby1, vega, openarm, urgantry, or dual_kinova3")
     return robot, hand
 
 
