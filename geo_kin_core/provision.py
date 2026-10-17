@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import stat
@@ -92,8 +93,8 @@ def _product_parts(product: str) -> tuple[str, str | None]:
     parts = product.lower().split("-", 1)
     robot = parts[0]
     hand = parts[1] if len(parts) == 2 else None
-    if robot not in {"g1", "rby1", "vega", "openarm", "urgantry"}:
-        raise ValueError("product must begin with g1, rby1, vega, openarm, or urgantry")
+    if robot not in {"g1", "rby1", "vega", "openarm", "urgantry", "dual_kinova3"}:
+        raise ValueError("product must begin with g1, rby1, vega, openarm, urgantry, or dual_kinova3")
     return robot, hand
 
 
@@ -115,7 +116,8 @@ def _project_product(project: Path, explicit: str | None) -> str:
 
 def _project_python(project: Path, explicit: str | None) -> Path:
     if explicit:
-        python = Path(explicit).expanduser().resolve()
+        # Preserve the venv executable path: resolving its symlink selects system Python.
+        python = Path(explicit).expanduser().absolute()
     elif os.environ.get("VIRTUAL_ENV") and Path.cwd().resolve() == project:
         executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
         python = Path(os.environ["VIRTUAL_ENV"]) / executable
@@ -258,11 +260,18 @@ def install(args) -> None:
     robot, hand = _product_parts(product)
     python = _project_python(project, args.python)
     wheel = _registered_wheel(product, args.wheel)
-    license_path = _active_license()
     shared = _shared_install(wheel, product)
-    link = _link_environment(python, shared)
+    # Inspect the requested wheel without changing the current environment. Runtime
+    # session construction below remains authoritative for access control.
+    free_products = json.loads(subprocess.check_output(
+        [str(python), "-c", f"import sys; sys.path.insert(0, {str(shared)!r}); import geo_kin,json; print(json.dumps(getattr(geo_kin,'FREE_PRODUCTS',[])))"],
+        text=True,
+    ))
+    license_path = None if product in free_products else _active_license()
 
     check = """
+import sys
+sys.path.insert(0, SHARED)
 import geo_kin
 from pathlib import Path
 assert Path(geo_kin.__file__).resolve().is_relative_to(Path(SHARED).resolve()), geo_kin.__file__
@@ -274,7 +283,8 @@ geo_kin.RetargetSession(robot=ROBOT, hand=HAND)
 print(f"geo_kin {geo_kin.__version__}: {PRODUCT} session OK")
 """
     environment = os.environ.copy()
-    environment["GEO_KIN_LICENSE"] = str(license_path)
+    if license_path is not None:
+        environment["GEO_KIN_LICENSE"] = str(license_path)
     subprocess.run(
         [
             str(python),
@@ -287,12 +297,14 @@ print(f"geo_kin {geo_kin.__version__}: {PRODUCT} session OK")
         check=True,
         env=environment,
     )
+    # Commit the switch only after successful validation. uv sync preserves this link.
+    link = _link_environment(python, shared)
     print(f"project: {project}")
     print(f"python: {python}")
     print(f"wheel: {wheel}")
     print(f"shared install: {shared}")
     print(f"environment link: {link}")
-    print(f"license: {license_path}")
+    print(f"license: {license_path or 'not required for pose-only demo; a valid dev license unlocks full access'}")
 
 
 def status(_args) -> None:
