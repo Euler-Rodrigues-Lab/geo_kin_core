@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import stat
@@ -258,9 +259,15 @@ def install(args) -> None:
     robot, hand = _product_parts(product)
     python = _project_python(project, args.python)
     wheel = _registered_wheel(product, args.wheel)
-    license_path = _active_license()
     shared = _shared_install(wheel, product)
     link = _link_environment(python, shared)
+    # The extension declares exact products granted free distribution. Runtime
+    # session construction below remains authoritative for access control.
+    free_products = json.loads(subprocess.check_output(
+        [str(python), "-c", "import geo_kin,json; print(json.dumps(getattr(geo_kin,'FREE_PRODUCTS',[])))"],
+        text=True,
+    ))
+    license_path = None if product in free_products else _active_license()
 
     check = """
 import geo_kin
@@ -274,7 +281,8 @@ geo_kin.RetargetSession(robot=ROBOT, hand=HAND)
 print(f"geo_kin {geo_kin.__version__}: {PRODUCT} session OK")
 """
     environment = os.environ.copy()
-    environment["GEO_KIN_LICENSE"] = str(license_path)
+    if license_path is not None:
+        environment["GEO_KIN_LICENSE"] = str(license_path)
     subprocess.run(
         [
             str(python),
@@ -292,7 +300,7 @@ print(f"geo_kin {geo_kin.__version__}: {PRODUCT} session OK")
     print(f"wheel: {wheel}")
     print(f"shared install: {shared}")
     print(f"environment link: {link}")
-    print(f"license: {license_path}")
+    print(f"license: {license_path or 'not required (free experimental product)'}")
 
 
 def status(_args) -> None:
