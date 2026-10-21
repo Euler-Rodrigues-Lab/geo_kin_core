@@ -130,3 +130,20 @@ class EEFFrame:
     R_world_upper_body: Optional[np.ndarray] = None
     left_fingers_wrist: Optional[dict] = None
     right_fingers_wrist: Optional[dict] = None
+
+@dataclass
+class TrackedPose:
+    """A tracked head or wrist pose in a common world frame (metres, SO(3))."""
+    position: np.ndarray
+    rotation: np.ndarray
+
+
+@dataclass
+class TCPFrame:
+    """Head + wrist poses and wrist-local hand landmarks; no torso/elbow inputs."""
+    head_pose: Optional[TrackedPose] = None
+    left_eef: Optional[TrackedPose] = None
+    right_eef: Optional[TrackedPose] = None
+    left_fingers_wrist: Optional[dict] = None
+    right_fingers_wrist: Optional[dict] = None
+    skeleton: Optional[dict] = None  # visualization only
