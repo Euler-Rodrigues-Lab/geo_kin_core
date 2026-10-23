@@ -1,3 +1,9 @@
+<!-- Release installation guidance -->
+For new customer environments, install the versioned release with
+`uv pip install "geo-kin-core==0.1.1"` after it is published to PyPI.
+The submodule instructions below describe legacy/developer setups; consumer
+projects should use released dependencies by default. See [RELEASING.md](RELEASING.md).
+
 # geo-kin-core
 
 Public core for SEW-geometric teleoperation retargeting:

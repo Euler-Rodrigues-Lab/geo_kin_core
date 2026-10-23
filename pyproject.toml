@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geo-kin-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Public core for geo-kin retargeting: typed messages, solver protocol, robot spec tooling, and a mink-based fallback solver."
 readme = "README.md"
 license = { text = "MIT" }
