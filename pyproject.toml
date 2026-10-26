@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "geo-kin-core"
+name = "eurola-geo-kin-core"
 version = "0.1.1"
 description = "Public core for geo-kin retargeting: typed messages, solver protocol, robot spec tooling, and a mink-based fallback solver."
 readme = "README.md"

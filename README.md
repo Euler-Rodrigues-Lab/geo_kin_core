@@ -1,10 +1,10 @@
 <!-- Release installation guidance -->
 For new customer environments, install the versioned release with
-`uv pip install "geo-kin-core==0.1.1"` after it is published to PyPI.
+`uv pip install "eurola-geo-kin-core==0.1.1"` after it is published to PyPI.
 The submodule instructions below describe legacy/developer setups; consumer
 projects should use released dependencies by default. See [RELEASING.md](RELEASING.md).
 
-# geo-kin-core
+# eurola-geo-kin-core
 
 Public core for SEW-geometric teleoperation retargeting:
 
@@ -52,7 +52,7 @@ licensed product they need:
 
 ```toml
 [tool.uv.sources]
-geo-kin-core = { path = "external/geo_kin_core", editable = true }
+eurola-geo-kin-core = { path = "external/geo_kin_core", editable = true }
 
 [tool.geo-kin]
 product = "rby1-xhand"
