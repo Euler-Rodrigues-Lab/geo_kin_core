@@ -92,8 +92,8 @@ def _product_parts(product: str) -> tuple[str, str | None]:
     parts = product.lower().split("-", 1)
     robot = parts[0]
     hand = parts[1] if len(parts) == 2 else None
-    if robot not in {"g1", "rby1", "vega", "openarm", "urgantry", "dual_kinova3"}:
-        raise ValueError("Unrecognized product. Update geo-kin-core or contact your distributor for the correct product identifier.")
+    if robot not in {"g1", "rby1", "vega", "openarm", "urgantry", "tianji", "dual_kinova3"}:
+        raise ValueError("Unrecognized product. Update eurola-geo-kin-core or contact your distributor for the correct product identifier.")
     return robot, hand
 
 
@@ -270,7 +270,11 @@ robots = set(geo_kin.COMPILED_ROBOTS)
 hands = set(geo_kin.COMPILED_HANDS)
 assert ROBOT in robots, "The registered wheel does not support the requested product."
 assert HAND is None or HAND in hands, "The registered wheel does not support the requested hand configuration."
-geo_kin.RetargetSession(robot=ROBOT, hand=HAND)
+if ROBOT == "tianji":
+    assert HAND == "sharpa", "Tianji demo requires Sharpa"
+    geo_kin.TianjiRetargetSession()
+else:
+    geo_kin.RetargetSession(robot=ROBOT, hand=HAND)
 print(f"geo_kin {geo_kin.__version__}: {PRODUCT} session OK")
 """
     environment = os.environ.copy()

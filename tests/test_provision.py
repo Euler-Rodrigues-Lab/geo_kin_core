@@ -14,3 +14,8 @@ def test_invalid_product_does_not_enumerate_products():
     with pytest.raises(ValueError) as error:
         _product_parts('unknown')
     assert not any(name in str(error.value) for name in ('g1', 'rby1', 'vega', 'openarm', 'dual_kinova3'))
+
+def test_tianji_product():
+    assert _product_parts('tianji-sharpa')==('tianji','sharpa')
+    assert _product_parts('rby1-xhand')==('rby1','xhand')
+    with pytest.raises(ValueError):_product_parts('not-a-robot')
