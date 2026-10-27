@@ -1,6 +1,6 @@
 """Smoke-check an installed release, outside the source checkout."""
 from importlib.metadata import version
-assert version('eurola-geo-kin-core') == "0.1.1"
+assert version('eurola-geo-kin-core') == "0.1.2"
 from geo_kin_core.provision import _product_parts
 assert _product_parts('openarm') == ('openarm', None)
 assert _product_parts('dual_kinova3-psyonic') == ('dual_kinova3', 'psyonic')

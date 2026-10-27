@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eurola-geo-kin-core"
-version = "0.1.1"
+version = "0.1.2"
 description = "Public core for geo-kin retargeting: typed messages, solver protocol, robot spec tooling, and a mink-based fallback solver."
 readme = "README.md"
 license = { text = "MIT" }
