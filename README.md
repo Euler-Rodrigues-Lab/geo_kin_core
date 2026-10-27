@@ -105,9 +105,9 @@ uv run geo-kin-provision install
 
 The install command reads `[tool.geo-kin].product`, selects the registered
 wheel, unpacks it once under `~/.local/share/geo-kin/installs`, and adds a
-small `geo_kin_shared.pth` link to the current project's `.venv`. It then
-checks the wheel's compiled robot/hand features and constructs a licensed
-session. Python virtual environments remain isolated without duplicating the
+small `geo_kin_shared.pth` link to the current project's `.venv`. Before
+switching that link, it checks the compiled robot/hand features and constructs
+a session; failed validation leaves the previous selection intact. Python virtual environments remain isolated without duplicating the
 private binary, and the link remains intact across normal `uv sync` and
 `uv run` operations.
 
@@ -123,6 +123,21 @@ Each repository has its own pinned copy of the small public package and command,
 but all of them use the same central wheel extraction and license. Set
 `GEO_KIN_WHEEL_DIR` to use a different shared wheel root. An explicit
 `GEO_KIN_LICENSE` continues to override the active canonical license. Never put
-a real wheel or license in this public repository or one of its consumers.
+a private wheel or personal license in this public repository or its consumers.
+
+### Explicit free-demo selection
+
+Consumers with an officially bundled demo can select it explicitly:
+
+```bash
+uv run geo-kin-provision install --project . --wheel /path/to/official-demo.whl
+```
+
+This selects a wheel for that environment without replacing the registered
+default wheel. Running `uv sync` alone does not select a solver.
+The Dual Kinova demo allows pose-only simulation sessions for 60 seconds from
+first solve, under its separate demo license. A valid covering dev license
+takes priority even in the demo build, enabling pose/TCP without that deadline.
+The demo grant does not permit redistribution or physical robot control.
 
 MIT licensed.
